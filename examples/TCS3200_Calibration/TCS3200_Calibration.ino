@@ -9,7 +9,7 @@
   LED Pin         13 
 */
 
-TCS3200 CS(11,12,5,13);
+TCS3200 CS(6,7,8,12,13,5);
 colorData  rgb;
 sensorData  raw;
 

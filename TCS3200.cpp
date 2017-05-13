@@ -1,35 +1,26 @@
 /*
   Design and created by Blascarr
-
   TCS3200
   Name    : Blascarr
   Description: TCS3200.h
   version : 1.0
-
-	TCS3200 is a library for color detection with TCS3200 module.
-
-	The main objective is improve the performance detection of differente range colors
-	for simple robotic applications.
-
-	Compute time event intervals to read input signal for non-blocking systems.
-	Assign interruption pint to the INPUT signal to calculate samples. 
-	Compute buffer based on mean values and filtering errors.
-	Mapping in different range values for colors.
-
-	EEPROM memory for save some calibration data and color list.
+  TCS3200 is a library for color detection with TCS3200 module.
+  The main objective is improve the performance detection of differente range colors
+  for simple robotic applications.
+  Compute time event intervals to read input signal for non-blocking systems.
+  Assign interruption pint to the INPUT signal to calculate samples. 
+  Compute buffer based on mean values and filtering errors.
+  Mapping in different range values for colors.
+  EEPROM memory for save some calibration data and color list.
   
   This library is a modification of MD_TCS230 created by Marco Colli
-
     https://github.com/MajicDesigns/MD_TCS230
-
-
-  	
-  	Blascarr invests time and resources providing this open source code like some other libraries, please
-  	respect the job and support open-source software.
+    
+    Blascarr invests time and resources providing this open source code like some other libraries, please
+    respect the job and support open-source software.
     
     Written by Adrian for Blascarr
 */
-
 
 #include <TCS3200.h>
 #include <EEPROM.h>
@@ -152,9 +143,7 @@ sensorData TCS3200::color(){
       }
 
       sensorcolor.value[i] = value/n;  
-
     }
-
   }
 
   /*DUMP(" Red: ", color.value[0]);
@@ -216,11 +205,12 @@ sensorData  TCS3200::relativeColor(bool RGB){
 
 colorData TCS3200::readRGB() {
   TCS3200::readRAW();
-  TCS3200::raw2RGB();
+  colorData color = TCS3200::raw2RGB();
 
   DUMP(" RGB Red : ",_rgb.value[TCS3200_RGB_R]);
   DUMP(" RGB Green : ",_rgb.value[TCS3200_RGB_G]);
   DUMP(" RGB Blue : ",_rgb.value[TCS3200_RGB_B]);
+  return color;
 }
 
 void TCS3200::getRGB(colorData *rgb){
@@ -321,7 +311,7 @@ void TCS3200::setWhiteCal(){
 }
 
 void TCS3200::setColorCal(){
-  colorData colorcl;
+  
   DUMPS(" Color Calibration ");
   
   while(!Serial.available()){
@@ -334,7 +324,7 @@ void TCS3200::setColorCal(){
 
       Serial.print(F("Calibration for color - "));
       Serial.println(_ct[i].name);
-      colorcl = TCS3200::readRGB();
+      colorData colorcl = TCS3200::readRGB();
 
       Serial.println(F("Is Correct? "));
       while(!Serial.available()){
@@ -364,7 +354,7 @@ void TCS3200::calibration(void){
   }
   Serial.println();
   if (Serial.read() == 'Y'){
-    TCS3200::saveCal(&_whiteraw, &_darkraw);
+    TCS3200::saveCal();
   }
 
   Serial.readString();Serial.println("Do you want to set Color values or Default RGB Values?");
@@ -387,7 +377,7 @@ void TCS3200::calibration(void){
   Serial.println();
   if (Serial.read() == 'Y'){
     Serial.println("Saved in EEPROM");
-    //TCS3200::saveCal(&_whiteraw, &_darkraw);
+    TCS3200::saveCT();
   }else{
     Serial.println("Not saved in EEPROM");
   }
@@ -437,40 +427,70 @@ uint8_t TCS3200::checkColor(colorData *rgb){
   return(minI);
 }
 
-void  TCS3200::saveCal(sensorData *whiteRGB, sensorData *darkRGB){
+void  TCS3200::saveCal(){
   int calWhiteAddress = 0;
-  int calDarkAddress = 0;
-  calDarkAddress += sizeof(float);
+  int calDarkAddress = calWhiteAddress + sizeof(sensorData);
+  EEPROM.put(calWhiteAddress, _whiteraw);
+  EEPROM.put(calDarkAddress, _darkraw);
+
+  DUMPS("White Calibration: ");
   for (uint8_t i=0; i<4; i++){
-    DUMP("Color: ", whiteRGB->value[i]);
+    DUMP("Color: ", _whiteraw.value[i]);
   }
-  EEPROM.put(calWhiteAddress, whiteRGB);
-  EEPROM.put(calDarkAddress, darkRGB);
+  DUMPS("Black Calibration: ");
+  for (uint8_t i=0; i<4; i++){
+    DUMP("Color: ", _darkraw.value[i]);
+  }
+
   DUMPS("Saved Calibration");
 }
 
-void  TCS3200::readCal(){
+void  TCS3200::loadCal(){
   int calWhiteAddress = 0;
-  sensorData whiteRGB;
-  EEPROM.get( calWhiteAddress, whiteRGB );
-  for (uint8_t i=0; i<4; i++){
-    DUMP("R", whiteRGB.value[i]);
-  }
+  int calDarkAddress = calWhiteAddress + sizeof(sensorData);
 
-  int calDarkAddress = 0;
-  calDarkAddress += sizeof(float);
-  
-  /*sensorData darkRGB;
-  
-  EEPROM.get( calDarkAddress, darkRGB );
-  _darkraw = darkRGB;
-  _whiteraw = whiteRGB;*/
+  EEPROM.get(calWhiteAddress, _whiteraw);
+  EEPROM.get(calDarkAddress, _darkraw);
+
+  DUMPS("White Calibration: ");
+  for (uint8_t i=0; i<4; i++){
+    DUMP("Color: ", _whiteraw.value[i]);
+  }
+  DUMPS("Black Calibration: ");
+  for (uint8_t i=0; i<4; i++){
+    DUMP("Color: ", _darkraw.value[i]);
+  }
 }
 
-void  TCS3200::saveCT(sensorData *rgb[]){
+void  TCS3200::saveCT(){
+  int address = 2*sizeof(sensorData);
+  
+  for (int i = 0; i < SIZECOLORS; ++i){
 
+    EEPROM.put(address, _ct[i]);
+    address += sizeof(colorTable);
+  }
+  if (DEBUG) TCS3200::readCT();
+}
+
+void  TCS3200::loadCT(){
+  int address = 2*sizeof(sensorData);
+  
+  for (int i = 0; i < SIZECOLORS; ++i){
+      EEPROM.get(address, _ct[i]);
+      address += sizeof(colorTable);
+  }
+  if (DEBUG) TCS3200::readCT();
 }
 
 void  TCS3200::readCT(){
-
+  for (int i = 0; i < SIZECOLORS; ++i){
+      DUMP("Color: ",_ct[i].name);
+      for (uint8_t j=0; j<3; j++){
+        
+        DUMP("  -  ", _ct[i].rgb.value[j]);
+        
+      }
+      if (DEBUG) Serial.println();
+  }
 }

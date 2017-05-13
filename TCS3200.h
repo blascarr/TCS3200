@@ -1,28 +1,20 @@
 /*
   Design and created by Blascarr
-
   TCS3200
   Name    : Blascarr
   Description: TCS3200.h
   version : 1.0
-
 	TCS3200 is a library for color detection with TCS3200 module.
-
 	The main objective is improve the performance detection of differente range colors
 	for simple robotic applications.
-
 	Compute time event intervals to read input signal for non-blocking systems.
 	Assign interruption pint to the INPUT signal to calculate samples. 
 	Compute buffer based on mean values and filtering errors.
 	Mapping in different range values for colors.
-
 	EEPROM memory for save some calibration data and color list.
   
   This library is a modification of MD_TCS230 created by Marco Colli
-
     https://github.com/MajicDesigns/MD_TCS230
-
-
   	
   	Blascarr invests time and resources providing this open source code like some other libraries, please
   	respect the job and support open-source software.
@@ -54,6 +46,7 @@
 	#define TCS3200_RGB_X  3 // 'Clear' filter selection
 
 	#define RGB_SIZE  4 // array index counter limit
+    #define SIZENAME 10
     #define SIZECOLORS 7
     typedef struct{
 		float value[RGB_SIZE];  // Raw data from the sensor
@@ -63,7 +56,7 @@
 		uint8_t value[RGB_SIZE]; // the evaluated colour data (RGB value 0-255 or other)
 	} colorData;
 	typedef struct	{
-		char    name[SIZECOLORS];  // color name 8+nul
+		char    name[SIZENAME];  // color name 8+nul
 		colorData rgb;    // RGB value
 	} colorTable;
 
@@ -75,6 +68,7 @@
 			uint8_t   _S2, _S3; // photodiode filter selection
 			uint8_t   _LED;
 			uint8_t   _freqSet; 
+
 			int	  _nSamples = 10;
 			
 			colorTable _ct[SIZECOLORS]={
@@ -140,10 +134,12 @@
 			uint8_t checkColor(colorData *rgb);
 			//EEPROM Saving Values
 
-			void  saveCal(sensorData *whiteRGB, sensorData *darkRGB);
-			void  readCal();
-			void  saveCT(sensorData *rgb[]);
+			void  saveCal();
+			void  loadCal();
+			void  saveCT();
+			void  loadCT();
 			void  readCT();
 	};
+
 
 #endif
