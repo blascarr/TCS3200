@@ -9,10 +9,12 @@ TCS3200 - Color Sensor
 
 	
 		Compute time event intervals to read input signal for non-blocking systems.
-		Assign interruption pin to the INPUT signal to calculate samples. 
 		Compute buffer based on mean values and filtering errors.
 		Mapping in different range values for colors.
 		EEPROM memory for save some calibration data and color list.
+		Remote Calibration with Bluetooth Devices adapted with SoftwareSerial
+		Remote Calibration with Bluetooth Devices adapted with HardwareSerial for MEGA
+		Assign interruption pin to the INPUT signal to calculate samples. (WIP)
 	
   
   This library is a modification of MD_TCS230 created by Marco Colli

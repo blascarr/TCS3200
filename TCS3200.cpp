@@ -8,10 +8,10 @@
   The main objective is improve the performance detection of differente range colors
   for simple robotic applications.
   Compute time event intervals to read input signal for non-blocking systems.
-  Assign interruption pint to the INPUT signal to calculate samples. 
   Compute buffer based on mean values and filtering errors.
   Mapping in different range values for colors.
   EEPROM memory for save some calibration data and color list.
+  Assign interruption pint to the INPUT signal to calculate samples. (WIP)
   
   This library is a modification of MD_TCS230 created by Marco Colli
     https://github.com/MajicDesigns/MD_TCS230
@@ -25,24 +25,118 @@
 #include <TCS3200.h>
 #include <EEPROM.h>
 
-#define  DEBUG 1
-  #if  DEBUG
-      #define  DUMP(s, v)  { Serial.print(F(s)); Serial.print(v); }
-      #define  DUMPS(s)    Serial.print(F(s))
-    #else
-      #define  DUMP(s, v)
-      #define  DUMPS(s)
+#define  DEBUG 0
+#define  DEBUG_CAL 0
+
+#define  DEBUG_MEGA 0
+#define  DEBUG_BT 0
+
+//Pattern for Debug detection
+#define  DEBUG_STARTCMD ""
+#define  DEBUG_ENDCMD ""
+#define  DEBUG_SEPCMD ","
+
+#define  DEBUG_MEGABT 0 //MEGABT uses Serial1 to connect Bluetooth module
+#define  DEBUG_BTCAL 0
+#define  DEBUG_RX 2
+#define  DEBUG_TX 3
+#define  BPS 9600
+#define  DEBUG_ESP 0
+
+//Pattern for Calibration detection
+#define  DEBUGCAL_STARTCMD "<"
+#define  DEBUGCAL_ENDCMD ">"
+#define  DEBUGCAL_SEPCMD "|"
+
+//Pattern for Color detection
+#define  SENDCOLOR 1
+#define  COLOR_STARTCMD "("
+#define  COLOR_ENDCMD ")"
+#define  COLOR_SEPCMD "|"
+
+  #if  DEBUG_BT || DEBUG_BTCAL
+    #include <SoftwareSerial.h>
+    SoftwareSerial BT(DEBUG_RX, DEBUG_TX);
   #endif
 
-TCS3200::TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT,uint8_t LED){
+  #if  DEBUG
+      #if DEBUG_MEGA && defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+        #define  DUMP(s, v)  { Serial1.print(DEBUG_STARTCMD);Serial1.print(F(s)); Serial1.print(v);Serial1.print(DEBUG_ENDCMD); }
+        #define  DUMPS(s)    { Serial1.print(DEBUG_STARTCMD);Serial1.print(F(s));Serial1.print(DEBUG_ENDCMD); }
+      #elif DEBUG_BT
+        
+        #define  DUMP(s, v)  { BT.print(DEBUG_STARTCMD);BT.print(F(s)); BT.print(v);BT.print(DEBUG_ENDCMD); }
+        #define  DUMPS(s)    { BT.print(DEBUG_STARTCMD);BT.print(F(s)); BT.print(DEBUG_ENDCMD);}
+      #else
+        #define  DUMP(s, v)  { Serial.print(DEBUG_STARTCMD); Serial.print(F(s)); Serial.print(v); Serial.print(DEBUG_ENDCMD); }
+        #define  DUMPS(s)    { Serial.print(DEBUG_STARTCMD); Serial.print(F(s)); Serial.print(DEBUG_ENDCMD);}
+      #endif
+  #else
+    #define  DUMP(s, v)
+    #define  DUMPS(s)
+  #endif
+
+  #if  DEBUG_CAL
+    #if DEBUG_MEGABT && defined (__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+
+      #define  DUMPCAL(s, v)  { Serial1.print(DEBUGCAL_STARTCMD);Serial1.print(F(s)); Serial1.print(v);Serial1.print(DEBUGCAL_ENDCMD); }
+      #define  DUMPSCAL(s)    { Serial1.print(DEBUGCAL_STARTCMD);Serial1.print(F(s)); Serial1.print(DEBUGCAL_ENDCMD);}
+      #define  DUMPSAVAILABLE()    Serial1.available()
+      #define  DUMPCOLOR(code) { Serial1.print(COLOR_STARTCMD); Serial1.print(code); Serial1.print(COLOR_ENDCMD);}
+      #define  DUMPREADSTRING() { Serial1.readString();}
+      #define  DUMPREAD(str) { str =Serial1.read();}
+      #define  DUMPPRINTLN() { Serial1.println();}
+    #elif DEBUG_BTCAL
+      #define  DUMPCAL(s, v)  { BT.print(DEBUGCAL_STARTCMD); BT.print(F(s)); BT.print(v);BT.print(DEBUGCAL_ENDCMD); }
+      #define  DUMPSCAL(s)    { BT.print(DEBUGCAL_STARTCMD); BT.print(F(s)); BT.print(DEBUGCAL_ENDCMD);}
+      #define  DUMPSAVAILABLE()    BT.available()
+      #define  DUMPCOLOR(code) { BT.print(COLOR_STARTCMD);BT.print(code);BT.print(COLOR_ENDCMD);}
+      #define  DUMPREADSTRING() {BT.readString();}
+      #define  DUMPREAD(str) { str =BT.read();}
+      #define  DUMPPRINTLN() { BT.println();}
+    #else
+      #define  DUMPCAL(s, v)  { Serial.print(DEBUGCAL_STARTCMD); Serial.print(F(s)); Serial.print(v);Serial.print(DEBUGCAL_ENDCMD); }
+      #define  DUMPSCAL(s)    { Serial.print(DEBUGCAL_STARTCMD); Serial.print(F(s));Serial.print(DEBUGCAL_ENDCMD);}
+      #define  DUMPSAVAILABLE()    Serial.available()
+      #define  DUMPCOLOR(code) { Serial.print(COLOR_STARTCMD); Serial.print(code);Serial.print(COLOR_ENDCMD);}
+      #define  DUMPREADSTRING() {Serial.readString();}    
+      #define  DUMPREAD(str) {str =Serial.read();}
+      #define  DUMPPRINTLN() { Serial.println();}
+    #endif
+  
+  #else
+    #define  DUMPCAL(s, v)
+    #define  DUMPSCAL(s)
+    #define  DUMPSAVAILABLE() false
+    #define  DUMPCOLOR(code) { Serial.print(COLOR_STARTCMD); Serial.print(code);Serial.print(COLOR_ENDCMD);}
+    #define  DUMPREADSTRING()   
+    #define  DUMPREAD(str) 
+    #define  DUMPPRINTLN() 
+  
+  #endif
+
+TCS3200::TCS3200(){
+  
+}
+
+TCS3200::TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT, uint8_t nEEPROM ){
+  _S2 = S2;
+  _S3 = S3;
+  _OUT = OUT;
+  _freqSet = TCS3200_FREQ_HI;
+  _nEEPROM = nEEPROM;
+}
+
+TCS3200::TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT,uint8_t LED, uint8_t nEEPROM ){
   _S2 = S2;
   _S3 = S3;
   _OUT = OUT;
   _LED = LED;
   _freqSet = TCS3200_FREQ_HI;
+  _nEEPROM = nEEPROM;
 }
 
-TCS3200::TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT , uint8_t S0, uint8_t S1, uint8_t LED){
+TCS3200::TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT , uint8_t S0, uint8_t S1, uint8_t LED, uint8_t nEEPROM ){
   _S0 = S0;
   _S1 = S1;
   _S2 = S2;
@@ -50,10 +144,50 @@ TCS3200::TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT , uint8_t S0, uint8_t S1, u
   _OUT = OUT;
   _LED = LED;
   _freqSet = TCS3200_FREQ_HI;
+  _nEEPROM = nEEPROM;
+}
+
+void TCS3200::setPins(uint8_t S2, uint8_t S3, uint8_t OUT,uint8_t LED, uint8_t nEEPROM ){
+  _S2 = S2;
+  _S3 = S3;
+  _OUT = OUT;
+  _LED = LED;
+  _freqSet = TCS3200_FREQ_HI;
+  _nEEPROM = nEEPROM;
+}
+
+void TCS3200::setPins(uint8_t S2, uint8_t S3, uint8_t OUT , uint8_t S0, uint8_t S1, uint8_t LED, uint8_t nEEPROM ){
+  _S0 = S0;
+  _S1 = S1;
+  TCS3200::setPins( S2,  S3,  OUT, LED,  nEEPROM );
+  /*_S2 = S2;
+  _S3 = S3;
+  _OUT = OUT;
+  _LED = LED;
+  _freqSet = TCS3200_FREQ_HI;
+  _nEEPROM = nEEPROM;*/
 }
 
 void TCS3200::begin(){
 
+  #if  DEBUG || DEBUG_CAL
+    #if ( DEBUG_MEGA || DEBUG_MEGABT ) && defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+      Serial1.begin(BPS);
+      DUMPS(" MEGA DEBUG");
+    #elif DEBUG_BT || DEBUG_BTCAL
+      BT.begin(BPS);
+      DUMPS(" Bluetooth DEBUG");
+    #else
+      Serial.begin(BPS);
+      DUMPS(" NORMAL DEBUG");
+    #endif
+
+    #if DEBUG_CAL || DEBUG_MEGABT || DEBUG_BTCAL
+      DUMPS(" CALIBRATION DEBUG MODE ");
+    #endif
+
+  #endif
+    
   if (_S0 != NULL )pinMode(_S0,OUTPUT);
   if (_S1 != NULL )pinMode(_S1,OUTPUT);
   pinMode(_S2,OUTPUT);
@@ -94,8 +228,16 @@ void  TCS3200::setRefreshTime(unsigned long refreshTime){
   TCS3200::refreshTime = refreshTime;
 }
 
+void  TCS3200::setEEPROMaddress( uint8_t nEEPROM ){
+  TCS3200::_nEEPROM = nEEPROM;
+}
+
 void  TCS3200::LEDON(bool ledON){
   digitalWrite(_LED, (ledON) ? HIGH : LOW );
+}
+
+void  TCS3200::setID(String ID){
+  ID.toCharArray(TCS3200::_ID, SIZENAME);
 }
 
 void  TCS3200::setOutInterrupt(bool ON){
@@ -116,10 +258,64 @@ void TCS3200::read(bool RGB) {
       TCS3200::readRAW();
     }
     
-    DUMP(" Non Blocking system Time: ",TCS3200::currentMillis-TCS3200::oldMillis);
+    DUMP("\nNon Blocking system Time: ",TCS3200::currentMillis-TCS3200::oldMillis);
+    DUMPS("\n");
+
     TCS3200::oldMillis  = TCS3200::currentMillis;
+    
   }
 }
+
+void TCS3200::sendColor(){
+  String code ;
+  String str (TCS3200::_ID);
+  if(str != ""){
+    code += TCS3200::_ID;
+    code += COLOR_SEPCMD;
+  }
+  code += TCS3200::_ct[TCS3200::_lastColor].name;
+  DUMPCOLOR(code); 
+} 
+
+bool TCS3200::onChangeColor(){
+  TCS3200::read();
+  int cli= TCS3200::checkColor( &_rgb );
+
+  if(cli != TCS3200::_lastColor){
+      
+      TCS3200::_lastColor = cli;
+      #if SENDCOLOR
+        TCS3200::sendColor();
+      #endif
+      return true;
+  }else{
+    return false;
+  }
+}
+/*sensorData TCS3200::color(){
+  sensorData color;   
+
+  //RED  Photodiode
+  setFilter(0); 
+  color.value[0] = pulseIn(_OUT, digitalRead(_OUT) == HIGH ? LOW : HIGH);  
+
+  //BLUE  Photodiode  
+  setFilter(1);
+  color.value[1] = pulseIn(_OUT, digitalRead(_OUT) == HIGH ? LOW : HIGH);  
+
+  //GREEN  Photodiode 
+  setFilter(2); 
+  color.value[2] = pulseIn(_OUT, digitalRead(_OUT) == HIGH ? LOW : HIGH);
+
+  //Clear Photodiode
+  setFilter(3); 
+  color.value[3] = pulseIn(_OUT, digitalRead(_OUT) == HIGH ? LOW : HIGH);
+
+  DUMP(" Red: ", color.value[0]);
+  DUMP(" Green: ", color.value[1]);
+  DUMP(" Blue: ", color.value[2]);  
+  return color;
+}*/
 
 sensorData TCS3200::color(){
   sensorData sensorcolor;   
@@ -143,7 +339,9 @@ sensorData TCS3200::color(){
       }
 
       sensorcolor.value[i] = value/n;  
+
     }
+
   }
 
   /*DUMP(" Red: ", color.value[0]);
@@ -165,10 +363,31 @@ sensorData TCS3200::readRAW() {
   sensorData rawcl;
   TCS3200::voidRAW(&rawcl);
 
+  /*for (int i = 0; i < _nSamples ; ++i){
+
+    cl = TCS3200::color();
+    rawcl.value[0]=rawcl.value[0] + cl.value[0];
+    rawcl.value[1]=rawcl.value[1] + cl.value[1];
+    rawcl.value[2]=rawcl.value[2] + cl.value[2];
+    //rawcl.value[3]=rawcl.value[3] + cl.value[3];
+  }*/
+
+
+  //rawcl.value[0] = rawcl.value[0]/_nSamples;
+  //rawcl.value[1] = rawcl.value[1]/_nSamples;
+  //rawcl.value[2] = rawcl.value[2]/_nSamples;
+  //rawcl.value[3] = rawcl.value[3]/_nSamples;
+
   rawcl = TCS3200::color();
   _raw.value[TCS3200_RGB_R] = rawcl.value[0];
   _raw.value[TCS3200_RGB_G] = rawcl.value[1];
   _raw.value[TCS3200_RGB_B] = rawcl.value[2];
+  //_raw.value[TCS3200_RGB_B] = rawcl.value[3];
+
+  /*DUMP(" Red : ",_raw.value[TCS3200_RGB_R]);
+  DUMP(" Green : ",_raw.value[TCS3200_RGB_G]);
+  DUMP(" Blue : ",_raw.value[TCS3200_RGB_B]);*/
+  //DUMP(" Clear : ",_raw.value[TCS3200_RGB_X]);
 
   return rawcl;
 }
@@ -207,9 +426,9 @@ colorData TCS3200::readRGB() {
   TCS3200::readRAW();
   colorData color = TCS3200::raw2RGB();
 
-  DUMP(" RGB Red : ",_rgb.value[TCS3200_RGB_R]);
-  DUMP(" RGB Green : ",_rgb.value[TCS3200_RGB_G]);
-  DUMP(" RGB Blue : ",_rgb.value[TCS3200_RGB_B]);
+  DUMP(" Red : ",_rgb.value[TCS3200_RGB_R]);
+  DUMP(" Green : ",_rgb.value[TCS3200_RGB_G]);
+  DUMP(" Blue : ",_rgb.value[TCS3200_RGB_B]);
   return color;
 }
 
@@ -242,144 +461,167 @@ void TCS3200::getRaw(sensorData *d){
 
 void TCS3200::setDarkCal(){
   sensorData darkcl;
-  DUMPS(" Dark Calibration ");
+  DUMPS(" \n Dark Calibration ");
   TCS3200::voidRAW(&darkcl);
   bool sure= false;
   while (sure == false){
 
-    while(!Serial.available()){
+    while(!DUMPSAVAILABLE()){
     
     }
-    Serial.readString();
+    DUMPREADSTRING();
 
     darkcl = TCS3200::readRAW();
-    Serial.print(F("RGB Dark Values")); 
+    DUMPS("RGB Dark Values"); 
 
+    String dataRGB = "";
     for (int i = 0; i < RGB_SIZE; ++i){
-      Serial.print("  ");Serial.print(darkcl.value[i]); 
+      dataRGB += darkcl.value[i];
+      dataRGB += DEBUGCAL_SEPCMD;
     }
-    
-    Serial.println();
-    DUMPS(" Are you sure this values are correct for Dark Calibration? (Y/N)");
-    while(!Serial.available()){
+    DUMPCAL("",dataRGB ); 
+    DUMPPRINTLN();
+
+    DUMP("",dataRGB);
+    DUMPS("\n Are you sure this values are correct for Dark Calibration? (Y/N)");
+    while(!DUMPSAVAILABLE()){
     
     }
-    Serial.println();
-    if (Serial.read() == 'Y'){
+    DUMPPRINTLN();
+    char chr;
+    DUMPREAD(chr);
+    DUMP("Char Read : ",chr);
+    if (chr == 'Y'){
       _darkraw = darkcl;
       sure = true;
     }
   }
   
-  DUMPS(" End Dark Calibration");
+  DUMPS("\n End Dark Calibration");
 }
 
 
 void TCS3200::setWhiteCal(){
   sensorData whitecl;
-  DUMPS(" White Calibration ");
+  DUMPS(" \n White Calibration ");
   TCS3200::voidRAW(&whitecl);
   bool sure= false;
   while (sure == false){
 
-    while(!Serial.available()){
+    while(!DUMPSAVAILABLE()){
     
     }
-    Serial.readString();
+    DUMPREADSTRING();
 
     whitecl = TCS3200::readRAW();
-    Serial.print(F("RGB White Values")); 
+    DUMPS("RGB White Values"); 
 
-    for (int i = 0; i < RGB_SIZE; ++i)
-    {
-      Serial.print("  ");Serial.print(whitecl.value[i]); 
+    String dataRGB = "";
+    for (int i = 0; i < RGB_SIZE; ++i){
+      dataRGB += whitecl.value[i];
+      dataRGB += DEBUGCAL_SEPCMD;
     }
+    DUMPCAL("",dataRGB ); 
+    DUMP("",dataRGB);
     
-    Serial.println();
-    DUMPS(" Are you sure this values are correct for White Calibration? (Y/N)");
-    while(!Serial.available()){
+    DUMPS("\n Are you sure this values are correct for White Calibration? (Y/N)");
+    while(!DUMPSAVAILABLE()){
     
     }
-    Serial.println();
-    if (Serial.read() == 'Y'){
+    DUMPPRINTLN();
+    char chr;
+    DUMPREAD(chr);
+    DUMP("Char Read : ",chr);
+    if (chr == 'Y'){
       _whiteraw = whitecl;
       sure = true;
     }
   }
   
-  DUMPS(" End Dark Calibration");
+  DUMPS(" End White Calibration");
 }
 
 void TCS3200::setColorCal(){
   
   DUMPS(" Color Calibration ");
   
-  while(!Serial.available()){
-  
+  while(!DUMPSAVAILABLE()){
+    
   }
-  Serial.readString();
+  DUMPREADSTRING();
   for (int i = 0; i < SIZECOLORS; ++i){
     bool sure= false;
     while (sure == false){
 
-      Serial.print(F("Calibration for color - "));
-      Serial.println(_ct[i].name);
+      DUMP("\nCalibration for color - ", _ct[i].name);
       colorData colorcl = TCS3200::readRGB();
-
-      Serial.println(F("Is Correct? "));
-      while(!Serial.available()){
-    
+      
+      String dataRGB = "";
+      for (int i = 0; i < RGB_SIZE; ++i){
+        dataRGB += colorcl.value[i];
+        dataRGB += DEBUGCAL_SEPCMD;
+      }
+      DUMPCAL("",dataRGB );
+      DUMPS("\nIs Correct? ");
+      while(!DUMPSAVAILABLE()){
       }
       
-      char readY = Serial.read();
+      char readY;
+      DUMPREAD(readY);
+      DUMP("\nChar Read : ",readY);
+
       if (readY == 'Y'){
         _ct[i].rgb = colorcl;
         sure = true;
       }else if(readY == 'N'){
-        sure = true;
+        //sure = true;
       }
-      Serial.readString();
+      DUMPREADSTRING();
     }
   }
 }
 
-void TCS3200::calibration(void){
+void TCS3200::calibration(uint8_t nEEPROM){
   TCS3200::setDarkCal();
   TCS3200::setWhiteCal();
-  Serial.readString();
-  Serial.flush();
-  Serial.println("Do you want to save Calibration in EEPROM?");
-  while(!Serial.available()){
-    
-  }
-  Serial.println();
-  if (Serial.read() == 'Y'){
-    TCS3200::saveCal();
+  DUMPREADSTRING();
+
+  DUMPS("\nDo you want to save Calibration in EEPROM?");
+  while(!DUMPSAVAILABLE()){
   }
 
-  Serial.readString();Serial.println("Do you want to set Color values or Default RGB Values?");
-  while(!Serial.available()){
-    
+  char readY;
+  DUMPREAD(readY);
+  DUMP("Char Read : ",readY);
+  if (readY == 'Y'){
+    DUMP("\nBlack and White Calibration saved in EEPROM in EEPROM Address:  ",TCS3200::_nEEPROM);
+    TCS3200::saveCal(nEEPROM);
   }
-  Serial.println();
-  if (Serial.read() == 'Y'){
-    Serial.println("Setting RGB Values");
+
+  DUMPREADSTRING();DUMPS("\nDo you want to set Color values (Y) or Load EEPROM Values (N)?");
+  while(!DUMPSAVAILABLE()){
+  }
+
+  DUMPREAD(readY);
+  DUMP("Char Read : ",readY);
+  if (readY == 'Y'){
+    DUMPS("\nSetting RGB Values");
     TCS3200::setColorCal();
+    DUMPREADSTRING();DUMPS("\nDo you want to save Calibration Colors in EEPROM?\n");
+    while(!DUMPSAVAILABLE()){
+    }
 
+    DUMPREAD(readY);
+    DUMP("Char Read : ",readY);
+    if (readY == 'Y'){
+      DUMP("\nColour table saved in EEPROM in EEPROM Address:  ", TCS3200::_nEEPROM);
+      TCS3200::saveCT(TCS3200::_nEEPROM);
+    }else{
+      DUMPS("\nNot saved in EEPROM");
+    }
   }else{
-    Serial.println("Default RGB Values");
-  }
-
-  Serial.readString();Serial.println("Do you want to save Calibration Colors in EEPROM?");
-  while(!Serial.available()){
-    
-  }
-  Serial.println();
-  if (Serial.read() == 'Y'){
-    Serial.println("Saved in EEPROM");
-    TCS3200::saveCT();
-  }else{
-    Serial.println("Not saved in EEPROM");
+    DUMPS("\nEEPROM RGB Values");
+    TCS3200::loadCT( nEEPROM );
   }
 
 }
@@ -427,43 +669,46 @@ uint8_t TCS3200::checkColor(colorData *rgb){
   return(minI);
 }
 
-void  TCS3200::saveCal(){
-  int calWhiteAddress = 0;
+void  TCS3200::saveCal(uint8_t nEEPROM){
+  _nEEPROM = nEEPROM;
+  int calWhiteAddress = _nEEPROM;
   int calDarkAddress = calWhiteAddress + sizeof(sensorData);
   EEPROM.put(calWhiteAddress, _whiteraw);
   EEPROM.put(calDarkAddress, _darkraw);
 
-  DUMPS("White Calibration: ");
+  DUMPS("\t White Calibration: ");
   for (uint8_t i=0; i<4; i++){
-    DUMP("Color: ", _whiteraw.value[i]);
+    DUMP(" Color: ", _whiteraw.value[i]);
   }
-  DUMPS("Black Calibration: ");
+  DUMPS("\n \t Black Calibration: ");
   for (uint8_t i=0; i<4; i++){
-    DUMP("Color: ", _darkraw.value[i]);
+    DUMP(" Color: ", _darkraw.value[i]);
   }
 
-  DUMPS("Saved Calibration");
+  DUMPS("\nSaved Calibration");
 }
 
-void  TCS3200::loadCal(){
-  int calWhiteAddress = 0;
+void  TCS3200::loadCal(uint8_t nEEPROM){
+  _nEEPROM = nEEPROM;
+  int calWhiteAddress = _nEEPROM;
   int calDarkAddress = calWhiteAddress + sizeof(sensorData);
 
   EEPROM.get(calWhiteAddress, _whiteraw);
   EEPROM.get(calDarkAddress, _darkraw);
 
-  DUMPS("White Calibration: ");
+  DUMPS("\n \t White Calibration: ");
   for (uint8_t i=0; i<4; i++){
     DUMP("Color: ", _whiteraw.value[i]);
   }
-  DUMPS("Black Calibration: ");
+  DUMPS("\n \tBlack Calibration: ");
   for (uint8_t i=0; i<4; i++){
     DUMP("Color: ", _darkraw.value[i]);
   }
+  DUMPS("\n Calibration Loaded ");
 }
 
-void  TCS3200::saveCT(){
-  int address = 2*sizeof(sensorData);
+void  TCS3200::saveCT(uint8_t nEEPROM ){
+  int address = nEEPROM + 2*sizeof(sensorData);
   
   for (int i = 0; i < SIZECOLORS; ++i){
 
@@ -471,26 +716,30 @@ void  TCS3200::saveCT(){
     address += sizeof(colorTable);
   }
   if (DEBUG) TCS3200::readCT();
+
+  DUMPS("\n Color Table Calibration Saved ");
 }
 
-void  TCS3200::loadCT(){
-  int address = 2*sizeof(sensorData);
+void  TCS3200::loadCT(uint8_t nEEPROM ){
+  int address = nEEPROM + 2*sizeof(sensorData);
   
   for (int i = 0; i < SIZECOLORS; ++i){
       EEPROM.get(address, _ct[i]);
       address += sizeof(colorTable);
   }
   if (DEBUG) TCS3200::readCT();
+
+  DUMPS("\n Color Table Calibration Loaded ");
 }
 
 void  TCS3200::readCT(){
   for (int i = 0; i < SIZECOLORS; ++i){
-      DUMP("Color: ",_ct[i].name);
+      DUMP("\nColor: ",_ct[i].name);
       for (uint8_t j=0; j<3; j++){
         
         DUMP("  -  ", _ct[i].rgb.value[j]);
         
       }
-      if (DEBUG) Serial.println();
+      DUMPS("\n");
   }
 }
