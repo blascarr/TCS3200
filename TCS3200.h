@@ -7,10 +7,14 @@
 	TCS3200 is a library for color detection with TCS3200 module.
 	The main objective is improve the performance detection of differente range colors
 	for simple robotic applications.
+
 	Compute time event intervals to read input signal for non-blocking systems.
 	Compute buffer based on mean values and filtering errors.
 	Mapping in different range values for colors.
 	EEPROM memory for save some calibration data and color list.
+	Remote Calibration with Bluetooth Devices adapted with SoftwareSerial.
+	Remote Calibration with Bluetooth Devices adapted with HardwareSerial for MEGA.
+	Discrete Event System support.
 	Assign interruption pint to the INPUT signal to calculate samples. (WIP)
   
   This library is a modification of MD_TCS230 created by Marco Colli
@@ -145,6 +149,7 @@
 			//EEPROM Saving Values
 			void  saveCal(uint8_t nEEPROM = 0);
 			void  loadCal(uint8_t nEEPROM = 0);
+			void  loadBW(uint8_t nEEPROM = 0);
 			void  saveCT(uint8_t nEEPROM = 0);
 			void  loadCT(uint8_t nEEPROM = 0);
 			void  readCT();
