@@ -79,11 +79,13 @@ class TCS3200 {
 	uint8_t _S2,
 		_S3; // photodiode filter selection
 	uint8_t _LED;
+
 	uint8_t _freqSet = TCS3200_FREQ_MID;
 	uint8_t _nEEPROM = 0;
 	int _lastColor = 0;
 	int _nSamples = 10;
 	char _ID[SIZENAME];
+	bool _LEDToRead = true;
 
 	colorTable _ct[SIZECOLORS] = {colorTable{"WHITE", {255, 255, 255}},
 								  colorTable{"BLACK", {0, 0, 0}},
@@ -132,7 +134,8 @@ class TCS3200 {
 	void LEDON(bool ledON);
 	void nSamples(int nSamples) { _nSamples = nSamples; }
 	void setEEPROMaddress(uint8_t nEEPROM);
-
+	void setLEDtoRead(bool ledRead) { _LEDToRead = ledRead; };
+	bool getLEDtoRead() { return _LEDToRead; }
 	void voidRAW(sensorData *d);
 
 	void setRefreshTime(unsigned long refreshTime);
@@ -364,7 +367,8 @@ String TCS3200::readColor() { return _ct[_lastColor].name; }
 uint8_t TCS3200::readColorID() { return _lastColor; }
 
 sensorData TCS3200::color() {
-	TCS3200::LEDON(true);
+	if (_LEDToRead)
+		TCS3200::LEDON(true);
 	sensorData sensorcolor;
 
 	for (int i = 0; i < RGB_SIZE; ++i) {
@@ -385,7 +389,8 @@ sensorData TCS3200::color() {
 			sensorcolor.value[i] = value / n;
 		}
 	}
-	TCS3200::LEDON(false);
+	if (_LEDToRead)
+		TCS3200::LEDON(false);
 	return sensorcolor;
 }
 
