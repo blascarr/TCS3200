@@ -379,15 +379,16 @@ sensorData TCS3200::color() {
 		for (int j = 0; j < _nSamples; ++j) {
 			setFilter(i);
 			float color = pulseIn(_OUT, digitalRead(_OUT) == HIGH ? LOW : HIGH);
-
-			// 1.5 value of threshold
-			if (color / _nSamples > fvalue / 1.5) {
-				fvalue = (fvalue + color) / _nSamples;
-				value = value + color;
+			// 1.5 value of threshold. Exclude values which are 50% higher or
+			// lower than color reading.
+			float threshold = 1.5;
+			if (color > (fvalue / threshold)) {
 				n++;
+				value += color;
+				fvalue += color;
 			}
-			sensorcolor.value[i] = value / n;
 		}
+		sensorcolor.value[i] = value / n;
 	}
 	if (_LEDToRead)
 		TCS3200::LEDON(false);
