@@ -4,28 +4,20 @@
 		Name    : Blascarr
 		Description: TCS3200.h
 		version : 1.0
-	TCS3200 is a
-		library for color detection with TCS3200
-   module. The main objective is improve the
-   performance detection of differente range
-   colors for simple robotic applications. Compute
-   time event intervals to read input signal for
-		non-blocking systems. Compute buffer based
-   on mean values and filtering errors. Mapping in
-   different range values for colors. EEPROM
-   memory for save some calibration data and color
-   list. Assign interruption pint to the INPUT
-   signal to calculate samples. (WIP)
+	TCS3200 is a library for color detection with TCS3200 module.
+	The main objective is improve the performance detection of differente range
+	colors for simple robotic applications. Compute time event intervals to read
+	input signal for non-blocking systems. Compute buffer based on mean values
+	and filtering errors. Mapping in different range values for colors. EEPROM
+	memory for save some calibration data and color list. Assign interruption
+	pint to the INPUT signal to calculate samples. (WIP)
 
-		This library is a modification of
-   MD_TCS230 created by Marco Colli
-https://github.com/MajicDesigns/MD_TCS230
+	This library is a modification of MD_TCS230 created by Marco Colli
+	https://github.com/MajicDesigns/MD_TCS230
 
-	Blascarr invests
-		time and resources providing this open
-   source code like some other libraries, please
-   respect the job and support open-source
-   software.
+	Blascarr invests time and resources providing this open source code like
+	some other libraries, please respect the job and support open-source
+	software.
 
 	Written by Adrian for Blascarr
 */
@@ -58,34 +50,50 @@ https://github.com/MajicDesigns/MD_TCS230
 #define SIZENAME 10
 #define SIZECOLORS 8
 typedef struct {
-	float value[RGB_SIZE]; // Raw data from the
-						   // sensor
+	float value[RGB_SIZE]; // Raw data from the sensor
 } sensorData;
 
 typedef struct {
-	uint8_t value[RGB_SIZE]; // the evaluated colour
-							 // data (RGB value 0-255
-							 // or other)
+	uint8_t
+		value[RGB_SIZE]; // the evaluated colour data (RGB value 0-255 or other)
 } colorData;
 typedef struct {
 	char name[SIZENAME]; // color name
 	colorData rgb;		 // RGB value
 } colorTable;
+typedef enum {
+	TCS3200_LEDOFF = 0,
+	TCS3200_LEDREAD = 1,
+	TCS3200_LEDON = 2
+} TCS3200_LEDStatus;
 
+const bool FrequencySettings[][2] = {
+	{LOW, LOW},	 // TCS3200_FREQ_OFF
+	{LOW, HIGH}, // TCS3200_FREQ_LO
+	{HIGH, LOW}, // TCS3200_FREQ_MID
+	{HIGH, HIGH} // TCS3200_FREQ_HI
+};
+
+const bool FilterSettings[][2] = {
+	{LOW, LOW},	  // TCS3200_RGB_R
+	{HIGH, HIGH}, // TCS3200_RGB_G
+	{LOW, HIGH},  // TCS3200_RGB_B
+	{HIGH, LOW}	  // TCS3200_RGB_X
+};
 class TCS3200 {
   public:
 	uint8_t _OUT;	  // output enable pin
 	uint8_t _S0, _S1; // frequency scaler
-	uint8_t _S2,
-		_S3; // photodiode filter selection
+	uint8_t _S2, _S3; // photodiode filter selection
 	uint8_t _LED;
 
 	uint8_t _freqSet = TCS3200_FREQ_MID;
+	uint8_t _filterSet = 0;
 	uint8_t _nEEPROM = 0;
 	int _lastColor = 0;
-	int _nSamples = 10;
+	int _nSamples = 20;
 	char _ID[SIZENAME];
-	bool _LEDToRead = true;
+	TCS3200_LEDStatus _LEDToRead = TCS3200_LEDON;
 
 	colorTable _ct[SIZECOLORS] = {colorTable{"WHITE", {255, 255, 255}},
 								  colorTable{"BLACK", {0, 0, 0}},
@@ -134,7 +142,7 @@ class TCS3200 {
 	void LEDON(bool ledON);
 	void nSamples(int nSamples) { _nSamples = nSamples; }
 	void setEEPROMaddress(uint8_t nEEPROM);
-	void setLEDtoRead(bool ledRead) { _LEDToRead = ledRead; };
+	void setLEDtoRead(TCS3200_LEDStatus ledRead) { _LEDToRead = ledRead; };
 	bool getLEDtoRead() { return _LEDToRead; }
 	void voidRAW(sensorData *d);
 
@@ -367,8 +375,7 @@ String TCS3200::readColor() { return _ct[_lastColor].name; }
 uint8_t TCS3200::readColorID() { return _lastColor; }
 
 sensorData TCS3200::color() {
-	if (_LEDToRead)
-		TCS3200::LEDON(true);
+	TCS3200::LEDON(_LEDToRead);
 	sensorData sensorcolor;
 
 	for (int i = 0; i < RGB_SIZE; ++i) {
@@ -390,8 +397,7 @@ sensorData TCS3200::color() {
 		}
 		sensorcolor.value[i] = value / n;
 	}
-	if (_LEDToRead)
-		TCS3200::LEDON(false);
+	TCS3200::LEDON(_LEDToRead > 1);
 	return sensorcolor;
 }
 
