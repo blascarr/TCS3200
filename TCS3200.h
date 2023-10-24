@@ -68,10 +68,10 @@ typedef enum {
 } TCS3200_LEDStatus;
 
 const bool FrequencySettings[][2] = {
-	{LOW, LOW},	 // TCS3200_FREQ_OFF
-	{LOW, HIGH}, // TCS3200_FREQ_LO
-	{HIGH, LOW}, // TCS3200_FREQ_MID
-	{HIGH, HIGH} // TCS3200_FREQ_HI
+	{HIGH, HIGH}, // TCS3200_FREQ_HI
+	{HIGH, LOW},  // TCS3200_FREQ_MID
+	{LOW, HIGH},  // TCS3200_FREQ_LO
+	{LOW, LOW}	  // TCS3200_FREQ_OFF
 };
 
 const bool FilterSettings[][2] = {
@@ -105,7 +105,7 @@ class TCS3200 {
 								  colorTable{"BROWN", {190, 170, 150}}};
 
 	typedef void (TCS3200::*_f_RGBMODE)();
-	_f_RGBMODE f_RGB_MODE = &TCS3200::read_RAW;
+	_f_RGBMODE f_RGB_MODE = &TCS3200::read_RGB;
 
 	unsigned long refreshTime = 50;
 	Ticker *timer = nullptr;
@@ -113,15 +113,12 @@ class TCS3200 {
 	sensorData _raw; // current raw sensor reading
 
 	// Calibration white and Black
-	sensorData _relraw;	  // current relative raw
-						  // sensor reading
+	sensorData _relraw;	  // current relative raw sensor reading
 	sensorData _darkraw;  // Dark Calibration values
 	sensorData _whiteraw; // White Calibration values
 
-	colorData _rgb;		// colour based data for
-						// current reading
-	sensorData _relrgb; // current relative raw
-						// sensor reading
+	colorData _rgb;		// colour based data for current reading
+	sensorData _relrgb; // current relative raw sensor reading
 
 	TCS3200();
 	TCS3200(uint8_t S2, uint8_t S3, uint8_t OUT, uint8_t nEEPROM = 0);
@@ -187,8 +184,10 @@ class TCS3200 {
 	uint8_t readColorID();
 
 	// Events for Calibration
-	void setDarkCal();
-	void setWhiteCal();
+	sensorData setDarkCal(bool saveDarkRaw = false);
+	sensorData setWhiteCal(bool saveWhiteRaw = false);
+	sensorData getDarkCal() { return _darkraw; };
+	sensorData getWhiteCal() { return _whiteraw; };
 	void calibration(uint8_t nEEPROM = 0);
 	void setColorCal();
 
@@ -198,6 +197,7 @@ class TCS3200 {
 	// EEPROM Saving Values
 	void saveCal(uint8_t nEEPROM = 0);
 	void loadCal(uint8_t nEEPROM = 0);
+	void saveBW(uint8_t nEEPROM = 0);
 	void loadBW(uint8_t nEEPROM = 0);
 	void saveCT(uint8_t nEEPROM = 0);
 	void loadCT(uint8_t nEEPROM = 0);
@@ -282,25 +282,9 @@ void TCS3200::setFrequency(uint8_t f) {
 	|	MEDIUM 	|	HIGH    |  LOW      |
 	|   HIGH    |   HIGH    |	HIGH 	|
 	*/
-	switch (f) {
-	case TCS3200_FREQ_HI:
-		digitalWrite(_S0, HIGH);
-		digitalWrite(_S1, HIGH);
-		break;
-	case TCS3200_FREQ_MID:
-		digitalWrite(_S0, HIGH);
-		digitalWrite(_S1, LOW);
-		break;
-	case TCS3200_FREQ_LO:
-		digitalWrite(_S0, LOW);
-		digitalWrite(_S1, HIGH);
-		break;
-	case TCS3200_FREQ_OFF:
-		digitalWrite(_S0, LOW);
-		digitalWrite(_S1, LOW);
-		break;
-	default:
-		break;
+	if (f < sizeof(FrequencySettings) / sizeof(FrequencySettings[0])) {
+		digitalWrite(_S0, FrequencySettings[f][0]);
+		digitalWrite(_S1, FrequencySettings[f][1]);
 	}
 }
 
@@ -312,26 +296,11 @@ void TCS3200::setFilter(uint8_t f) {
 	| B | LOW  |    HIGH    |
 	| X | HIGH |	LOW     |
 	*/
+	_filterSet = f;
 
-	switch (f) {
-	case TCS3200_RGB_R:
-		digitalWrite(_S2, LOW);
-		digitalWrite(_S3, LOW);
-		break;
-	case TCS3200_RGB_G:
-		digitalWrite(_S2, HIGH);
-		digitalWrite(_S3, HIGH);
-		break;
-	case TCS3200_RGB_B:
-		digitalWrite(_S2, LOW);
-		digitalWrite(_S3, HIGH);
-		break;
-	case TCS3200_RGB_X:
-		digitalWrite(_S2, HIGH);
-		digitalWrite(_S3, LOW);
-		break;
-	default:
-		break;
+	if (f < sizeof(FilterSettings) / sizeof(FilterSettings[0])) {
+		digitalWrite(_S2, FilterSettings[f][0]);
+		digitalWrite(_S3, FilterSettings[f][1]);
 	}
 }
 
@@ -414,9 +383,7 @@ colorData TCS3200::readRGB() {
 }
 
 sensorData TCS3200::readRAW() {
-	sensorData cl;
 	sensorData rawcl;
-	TCS3200::voidRAW(&rawcl);
 
 	rawcl = TCS3200::color();
 	_raw.value[TCS3200_RGB_R] = rawcl.value[0];
@@ -509,12 +476,40 @@ uint8_t TCS3200::checkColor(colorData *rgb) {
 	return (minI);
 }
 
-void TCS3200::saveCal(uint8_t nEEPROM) {
+/* --------------------------------------------------
+ * --------------- CALIBRATION METHODS --------------
+ * --------------------------------------------------
+ */
+
+sensorData TCS3200::setDarkCal(bool saveDarkRaw) {
+	sensorData darkcl;
+	darkcl = TCS3200::readRAW();
+	if (saveDarkRaw) {
+		_darkraw = darkcl;
+	}
+	return darkcl;
+}
+
+sensorData TCS3200::setWhiteCal(bool saveWhiteRaw) {
+	sensorData whitecl;
+	whitecl = TCS3200::readRAW();
+	if (saveWhiteRaw) {
+		_whiteraw = whitecl;
+	}
+	return whitecl;
+}
+
+void TCS3200::saveBW(uint8_t nEEPROM) {
 	_nEEPROM = nEEPROM;
 	int calWhiteAddress = _nEEPROM;
 	int calDarkAddress = calWhiteAddress + sizeof(sensorData);
 	EEPROM.put(calWhiteAddress, _whiteraw);
 	EEPROM.put(calDarkAddress, _darkraw);
+}
+
+void TCS3200::saveCal(uint8_t nEEPROM) {
+	TCS3200::saveBW(nEEPROM);
+	TCS3200::saveCT(nEEPROM);
 }
 
 void TCS3200::loadCal(uint8_t nEEPROM) {
@@ -532,6 +527,7 @@ void TCS3200::loadBW(uint8_t nEEPROM) {
 }
 
 void TCS3200::saveCT(uint8_t nEEPROM) {
+	// Save Color Table after Black and White sensorData Calibration values
 	int address = nEEPROM + 2 * sizeof(sensorData);
 	for (int i = 0; i < SIZECOLORS; ++i) {
 		EEPROM.put(address, _ct[i]);
@@ -540,6 +536,7 @@ void TCS3200::saveCT(uint8_t nEEPROM) {
 }
 
 void TCS3200::loadCT(uint8_t nEEPROM) {
+	// Load Color Table after Black and White sensorData Calibration values
 	int address = nEEPROM + 2 * sizeof(sensorData);
 	for (int i = 0; i < SIZECOLORS; ++i) {
 		EEPROM.get(address, _ct[i]);
