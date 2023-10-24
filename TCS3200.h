@@ -49,6 +49,15 @@
 #define RGB_SIZE 4 // array index counter limit
 #define SIZENAME 10
 #define SIZECOLORS 8
+
+#define TCS3200_WHITE 0
+#define TCS3200_BLACK 1
+#define TCS3200_YELLOW 2
+#define TCS3200_ORANGE 3
+#define TCS3200_RED 4
+#define TCS3200_GREEN 5
+#define TCS3200_BLUE 6
+#define TCS3200_BROWN 7
 typedef struct {
 	float value[RGB_SIZE]; // Raw data from the sensor
 } sensorData;
@@ -144,18 +153,16 @@ class TCS3200 {
 	void voidRAW(sensorData *d);
 
 	void setRefreshTime(unsigned long refreshTime);
-	void setInterrupt(bool ON);
+	void setInterrupt(bool ON); // TO DO - Define OUT as Interrupt pin
 
 	void setFilter(uint8_t f);	  // set the photodiode filter
-	void setFrequency(uint8_t f); // set frequency prescaler -
-								  // default 100%
+	void setFrequency(uint8_t f); // set frequency prescaler - default 100%
 	uint8_t getFrequency() { return _freqSet; }
-	void setRGBMode(bool _RGBMode); // set RGB Mode (true) or
-									// RAW Mode (false) in
-									// readings
+
+	// set RGB Mode (true) or RAW Mode (false) in readings
+	void setRGBMode(bool _RGBMode);
 	bool getRGBMode();
-	void read(); // synchronously non-blocking
-				 // reading value
+	void read(); // synchronously non-blocking reading value
 	void update() {
 		if (timer) {
 			timer->update();
@@ -170,13 +177,13 @@ class TCS3200 {
 	bool onChangeColor();
 	sensorData color(); // Single Reading
 	sensorData relativeColor();
-	void getRGB(colorData *rgb); // return RGB color data
-								 // for the last reading
-	void getRaw(sensorData *d);	 // return the raw data
-								 // from the last reading
+	void getRGB(colorData *rgb); // return RGB color data for the last reading
+	void getRaw(sensorData *d);	 // return the raw data from the last reading
 
-	sensorData readRAW(); // Read RAW Values
-	colorData readRGB();  // Read RGB Values
+	sensorData readRAW();	 // Read RAW Values
+	colorData raw2RGB(void); // Convert raw data to RGB
+	colorData readRGB();	 // Read RGB Values
+	uint8_t checkColor(colorData *rgb);
 	void read_RAW() { readRAW(); };
 	void read_RGB() { readRGB(); };
 
@@ -188,11 +195,7 @@ class TCS3200 {
 	sensorData setWhiteCal(bool saveWhiteRaw = false);
 	sensorData getDarkCal() { return _darkraw; };
 	sensorData getWhiteCal() { return _whiteraw; };
-	void calibration(uint8_t nEEPROM = 0);
-	void setColorCal();
-
-	colorData raw2RGB(void); // convert raw data to RGB
-	uint8_t checkColor(colorData *rgb);
+	colorData setColorCal(uint8_t colorID);
 
 	// EEPROM Saving Values
 	void saveCal(uint8_t nEEPROM = 0);
@@ -384,13 +387,11 @@ colorData TCS3200::readRGB() {
 
 sensorData TCS3200::readRAW() {
 	sensorData rawcl;
-
 	rawcl = TCS3200::color();
 	_raw.value[TCS3200_RGB_R] = rawcl.value[0];
 	_raw.value[TCS3200_RGB_G] = rawcl.value[1];
 	_raw.value[TCS3200_RGB_B] = rawcl.value[2];
 	_raw.value[TCS3200_RGB_X] = rawcl.value[3];
-
 	return rawcl;
 }
 
@@ -421,9 +422,8 @@ void TCS3200::getRGB(colorData *rgb) {
 }
 
 void TCS3200::getRaw(sensorData *d) {
-	// get the raw data of the current reading
-	// useful to set dark and white calibration
-	// data
+	// get the raw data of the current reading useful to set dark and white
+	// calibration data
 	if (d == NULL)
 		return;
 
@@ -433,16 +433,14 @@ void TCS3200::getRaw(sensorData *d) {
 }
 
 colorData TCS3200::raw2RGB(void) {
-	// Exploiting linear relationship to remap the
-	// range
+	// Exploiting linear relationship to remap the range
 	int32_t x;
 	colorData color;
 	for (uint8_t i = 0; i < RGB_SIZE; i++) {
 		x = (_raw.value[i] - _darkraw.value[i]) * 255;
 		x /= (_whiteraw.value[i] - _darkraw.value[i]);
 
-		// copy results back into the global
-		// structures
+		// copy results back into the global structures
 		if (x < 0)
 			color.value[i] = 0;
 		else if (x > 255)
@@ -470,8 +468,7 @@ uint8_t TCS3200::checkColor(colorData *rgb) {
 			minI = i;
 		}
 		if (v == 0)
-			break; // perfect match, no need to
-				   // search more
+			break; // perfect match, no need to search more
 	}
 	return (minI);
 }
@@ -497,6 +494,13 @@ sensorData TCS3200::setWhiteCal(bool saveWhiteRaw) {
 		_whiteraw = whitecl;
 	}
 	return whitecl;
+}
+
+colorData TCS3200::setColorCal(uint8_t colorID) {
+	colorData colorcl;
+	colorcl = TCS3200::readRGB();
+	_ct[colorID].rgb = colorcl;
+	return colorcl;
 }
 
 void TCS3200::saveBW(uint8_t nEEPROM) {
