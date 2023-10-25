@@ -1,0 +1,3 @@
+[submodule "DebugInterface"]
+	path = DebugInterface
+	url = https://github.com/blascarr/DebugInterface
