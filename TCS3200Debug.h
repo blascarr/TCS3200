@@ -85,6 +85,7 @@ class TCS3200Debug {
 	}
 
 	void readCT() {
+		debugger.printsln(SEPARATOR);
 		for (int i = 0; i < SIZECOLORS; ++i) {
 			debugger.dump(COLORMESSAGE, cs._ct[i].name);
 			for (uint8_t j = 0; j < 3; j++) {
@@ -92,6 +93,16 @@ class TCS3200Debug {
 			}
 			debugger.printsln(SEPARATOR);
 		}
+	}
+
+	void saveCT() {
+		cs.saveCT();
+		readCT();
+	}
+
+	void loadCT() {
+		cs.loadCT();
+		readCT();
 	}
 
 	void setDarkCal() {
