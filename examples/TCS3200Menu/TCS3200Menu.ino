@@ -36,6 +36,8 @@ void setup() {
 	CS.nSamples(40);
 	CS.setRGBMode(false);
 	CS.setRefreshTime(500);
+	// CS.loadBW();
+	// CS.loadCT();
 }
 
 void loop() { nav.poll(); }
