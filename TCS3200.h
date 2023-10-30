@@ -118,10 +118,10 @@ class TCS3200 {
 
 	unsigned long refreshTime = 50;
 	Ticker *timer = nullptr;
-
-	sensorData _raw; // current raw sensor reading
+	void (*onChangeCallback)(int) = nullptr;
 
 	// Calibration white and Black
+	sensorData _raw;	  // current raw sensor reading
 	sensorData _relraw;	  // current relative raw sensor reading
 	sensorData _darkraw;  // Dark Calibration values
 	sensorData _whiteraw; // White Calibration values
@@ -175,6 +175,17 @@ class TCS3200 {
 	}
 
 	bool onChangeColor();
+	void setOnChangeCallback(void (*callback)(int)) {
+		onChangeCallback = callback;
+	}
+
+	void tick() {
+		if (onChangeColor()) {
+			if (onChangeCallback)
+				onChangeCallback(_lastColor);
+		}
+	}
+
 	sensorData color(); // Single Reading
 	sensorData relativeColor();
 	void getRGB(colorData *rgb); // return RGB color data for the last reading
