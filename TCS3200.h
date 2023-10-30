@@ -188,7 +188,7 @@ class TCS3200 {
 	void read_RGB() { readRGB(); };
 
 	String readColor();
-	uint8_t readColorID();
+	uint8_t readLastColorID();
 
 	// Events for Calibration
 	sensorData setDarkCal(bool saveDarkRaw = false);
@@ -360,7 +360,7 @@ String TCS3200::readColor() {
 	int cli = TCS3200::checkColor(&_rgb);
 	return _ct[cli].name;
 }
-uint8_t TCS3200::readColorID() { return _lastColor; }
+uint8_t TCS3200::readLastColorID() { return _lastColor; }
 
 sensorData TCS3200::color() {
 	TCS3200::LEDON(_LEDToRead);

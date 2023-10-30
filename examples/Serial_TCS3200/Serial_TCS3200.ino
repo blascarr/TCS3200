@@ -1,31 +1,36 @@
-
-#define SERIAL_DEBUG
-//#define SERIALDEBUG Serial
-//#define DEBUG_CAL 
-#define SERIALREMOTE Serial
-#define BPS 9600
-
 #include <TCS3200.h>
 
-TCS3200 CS_F( 4, 5, 6, 2, 3, 7 );
+#define TCS3200_S2 2
+#define TCS3200_S3 3
+#define TCS3200_LED 4
+#define TCS3200_OUT 5
+#define TCS3200_S0 6
+#define TCS3200_S1 7
+
+TCS3200 CS(TCS3200_S2, TCS3200_S3, TCS3200_OUT, TCS3200_S0, TCS3200_S1,
+		   TCS3200_LED, 0);
+
+void colorChanged(int color) {
+	if (CS.onChangeColor()) {
+		Serial.print("Color cambiado a: ");
+		Serial.println(CS._ct[CS.readLastColorID()].name);
+	} else {
+		Serial.println("No change COLOR");
+	}
+}
+
+Ticker CSTicker(colorChanged, CS.refreshTime, 0, MILLIS);
 
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Ready: ");
-  CS_F.begin();
+	Serial.begin(9600);
+	CS.setTicker(CSTicker);
+	CS.begin();
 
-  CS_F.nSamples(40);
-  CS_F.setRefreshTime(200);
-  CS_F.setFrequency(TCS3200_FREQ_HI);
+	CS.setFrequency(0);
+	CS.nSamples(40);
+	CS.setRefreshTime(2000);
+	CS.loadBW();
+	CS.loadCT();
+}
 
-  //CS_F.calibration(0);
-  CS_F.loadCal(0);
-}
- 
-void loop() {
-  if (CS_F.onChangeColor()) {
-    Serial.println(  CS_F.readColorID()  );
-    Serial.println(  CS_F.readColor()  );
-  }
- 
-}
+void loop() { CS.update(); }

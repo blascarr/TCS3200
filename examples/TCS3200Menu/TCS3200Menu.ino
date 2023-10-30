@@ -34,7 +34,6 @@ void setup() {
 	CS.begin();
 	CS.setFrequency(0);
 	CS.nSamples(40);
-	CS.setRGBMode(false);
 	CS.setRefreshTime(500);
 	// CS.loadBW();
 	// CS.loadCT();
