@@ -16,7 +16,7 @@
 #ifndef _TCS3200DEBUG_H
 #define _TCS3200DEBUG_H
 
-#include "DebugInterface.h"
+#include "DebugInterface/DebugInterface.h"
 #include "TCS3200.h"
 
 const char COLORMESSAGE[] PROGMEM = "\nColor";
