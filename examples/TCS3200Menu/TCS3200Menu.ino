@@ -1,4 +1,4 @@
-#define SERIAL_DEBUG
+#define SERIAL_DEBUG true
 #include "ColorMenu.h"
 #include "TCS3200Debug.h"
 #include <TCS3200.h>
@@ -18,7 +18,7 @@ TCS3200Debug CSDebug(CS, SerialDebug);
 void globalTickerCallback() {
 	if (CS.onChangeColor()) {
 		Serial.println(CS.readColor());
-		Serial.println(CS.readColorID());
+		Serial.println(CS.readLastColorID());
 	} else {
 		CSDebug.read();
 	}
@@ -35,8 +35,11 @@ void setup() {
 	CS.setFrequency(0);
 	CS.nSamples(40);
 	CS.setRefreshTime(500);
-	// CS.loadBW();
-	// CS.loadCT();
+	CS.voidBW(); // Load default Factory Black & White calibration
+	CS.voidCT(); // Load default Factory Color Table calibration
+
+	// CS.loadBW(); // Load EEPROM Black & White calibration
+	// CS.loadCT(); // Load EEPROM Color Table calibration
 }
 
 void loop() { nav.poll(); }
