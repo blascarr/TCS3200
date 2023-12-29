@@ -29,8 +29,11 @@ void setup() {
 	CS.setFrequency(0);
 	CS.nSamples(40);
 	CS.setRefreshTime(2000);
-	CS.loadBW();
-	CS.loadCT();
+	CS.voidBW(); // Load default Factory Black & White calibration
+	CS.voidCT(); // Load default Factory Color Table calibration
+
+	// CS.loadBW(); // Load EEPROM Black & White calibration
+	// CS.loadCT(); // Load EEPROM Color Table calibration
 }
 
 void loop() { CS.update(); }
