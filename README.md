@@ -44,9 +44,9 @@ The main objective is improve the performance detection of differente range colo
 
 ### Download and Print your workspace setup to test
 Print these pieces to create this test workspace.
-- ArduinoSupportTest_TCS3200.
-- TesterUP_TCS3200.
-- TesterBottom_TCS3200.
+- [ArduinoSupportTest_TCS3200](STL/TCS3200_ArduinoSupportTest.stl).
+- [TesterUP_TCS3200](STL/TesterUP_TCS3200.stl).
+- [TesterBottom_TCS3200](TesterBottom_TCS3200.stl).
 
   ![Screenshot from 2023-12-29 16-12-47](https://github.com/blascarr/TCS3200/assets/6161706/df43a128-c655-49dd-a9b0-6599bd008005)
 
