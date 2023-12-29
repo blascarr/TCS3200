@@ -10,6 +10,7 @@ If you want to start with a Debug Interface model for calibration; I recommend t
 
 - Install [ArduinoMenu library](https://github.com/neu-rah/ArduinoMenu) from Library Manager.
 - Install [Ticker library](https://github.com/sstaub/Ticker) from Library Manager.
+- Install [Neurona library](https://github.com/MorettiCB/Neurona) from Library Manager.
 - Install this library from command line in Arduino/libraries folder.
 
 ```bash
@@ -35,6 +36,7 @@ The main objective is improve the performance detection of differente range colo
 - [x] Compute time event intervals to read input signal for non-blocking systems.
 - [x] Mapping in different range values for colors.
 - [x] EEPROM memory for save some calibration data and color list.
+- [x] Callback method to request color while sensor is working and detect color changes.
 - [x] Support to Neurona classication **Multi Layer Perceptron** by [Morettic](http://www.moretticb.com/Neurona).
 - [ ] Assign interruption pin to the INPUT signal to calculate samples.
 - [ ] Tests in platformio.
