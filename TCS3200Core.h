@@ -49,6 +49,10 @@
 #define RGB_SIZE 4 // array index counter limit
 #define SIZENAME 10
 
+#ifndef SIZECOLORS
+#define SIZECOLORS 8
+#endif
+
 typedef struct {
 	float value[RGB_SIZE]; // Raw data from the sensor
 } sensorData;
