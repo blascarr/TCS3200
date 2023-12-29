@@ -1,9 +1,5 @@
 # TCS3200-ColorSensor
 
-TCS3200 - Color Sensor
-
-# Colorino
-
 ## How to start
 
 If you want to start with a Debug Interface model for calibration; I recommend to follow this steps.
