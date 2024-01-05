@@ -63,13 +63,13 @@ class TCS3200Debug {
 
 	colorData readRGB() {
 		colorData data = cs.readRGB();
-		debug(cs._rgb);
+		// debug(cs._rgb);
 		return data;
 	}
 
 	sensorData readRAW() {
 		sensorData data = cs.readRAW();
-		debug(cs._raw);
+		// debug(cs._raw);
 		return data;
 	}
 
@@ -80,7 +80,7 @@ class TCS3200Debug {
 			debugger.prints(RAWMODEMESSAGE);
 		}
 		sensorData data = cs.relativeColor();
-		debug(cs._relraw);
+		// debug(cs._relraw);
 		return data;
 	}
 

@@ -22,8 +22,6 @@ void globalTickerCallback() {
 	if (CS.onChangeColor()) {
 		Serial.println(CS.readColor());
 		Serial.println(CS.readLastColorID());
-	} else {
-		// CS.read();
 	}
 }
 

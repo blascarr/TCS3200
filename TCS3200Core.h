@@ -89,35 +89,6 @@ const sensorData factory_BW[2] = {{254, 308, 275.5}, {97.5, 116.5, 99}};
 
 class TCS3200Core {
   public:
-	uint8_t _OUT;	  // output enable pin
-	uint8_t _S0, _S1; // frequency scaler
-	uint8_t _S2, _S3; // photodiode filter selection
-	uint8_t _LED;
-
-	uint8_t _freqSet = TCS3200_FREQ_MID;
-	uint8_t _filterSet = 0;
-	uint8_t _nEEPROM = 0;
-	int _lastColor = 0;
-	int _nSamples = 20;
-	char _ID[SIZENAME];
-	TCS3200_LEDStatus _LEDToRead = TCS3200_LEDON;
-
-	typedef void (TCS3200Core::*_f_RGBMODE)();
-	_f_RGBMODE f_RGB_MODE = &TCS3200Core::read_RGB;
-
-	unsigned long refreshTime = 50;
-	Ticker *timer = nullptr;
-	void (*onChangeCallback)(int) = nullptr;
-
-	// Calibration white and Black
-	sensorData _raw;	  // current raw sensor reading
-	sensorData _relraw;	  // current relative raw sensor reading
-	sensorData _darkraw;  // Dark Calibration values
-	sensorData _whiteraw; // White Calibration values
-
-	colorData _rgb;		// colour based data for current reading
-	sensorData _relrgb; // current relative raw sensor reading
-
 	TCS3200Core();
 	TCS3200Core(uint8_t S2, uint8_t S3, uint8_t OUT);
 	TCS3200Core(uint8_t S2, uint8_t S3, uint8_t OUT, uint8_t LED,
@@ -169,13 +140,6 @@ class TCS3200Core {
 		onChangeCallback = callback;
 	}
 
-	void tick() {
-		if (onChangeColor()) {
-			if (onChangeCallback)
-				onChangeCallback(_lastColor);
-		}
-	}
-
 	sensorData color(); // Single Reading
 	sensorData relativeColor();
 	void getRGB(colorData *rgb); // return RGB color data for the last reading
@@ -184,9 +148,6 @@ class TCS3200Core {
 	sensorData readRAW();	 // Read RAW Values
 	colorData raw2RGB(void); // Convert raw data to RGB
 	colorData readRGB();	 // Read RGB Values
-
-	void read_RAW() { readRAW(); };
-	void read_RGB() { readRGB(); };
 
 	// Events for Calibration
 	sensorData setDarkCal(bool saveDarkRaw = false);
@@ -205,6 +166,44 @@ class TCS3200Core {
 			timer = nullptr;
 		}
 	}
+
+  protected:
+	int _lastColor = 0;
+	// Calibration white and Black
+	sensorData _raw;	  // current raw sensor reading
+	sensorData _relraw;	  // current relative raw sensor reading
+	sensorData _darkraw;  // Dark Calibration values
+	sensorData _whiteraw; // White Calibration values
+	colorData _rgb;		  // colour based data for current reading
+	sensorData _relrgb;	  // current relative raw sensor reading
+  private:
+	typedef void (TCS3200Core::*_f_RGBMODE)();
+	_f_RGBMODE f_RGB_MODE = &TCS3200Core::read_RGB;
+	Ticker *timer = nullptr;
+	void (*onChangeCallback)(int) = nullptr;
+
+	uint8_t _OUT;	  // output enable pin
+	uint8_t _S0, _S1; // frequency scaler
+	uint8_t _S2, _S3; // photodiode filter selection
+	uint8_t _LED;
+	uint8_t _freqSet = TCS3200_FREQ_MID;
+	uint8_t _filterSet = 0;
+	uint8_t _nEEPROM = 0;
+	int _nSamples = 20;
+	char _ID[SIZENAME];
+	TCS3200_LEDStatus _LEDToRead = TCS3200_LEDON;
+	unsigned long refreshTime = 50;
+
+	void read_RAW() { readRAW(); };
+	void read_RGB() { readRGB(); };
+	void tick() {
+		if (onChangeColor()) {
+			if (onChangeCallback)
+				onChangeCallback(_lastColor);
+		}
+	}
+	void setColorData(sensorData &dest, const sensorData &src);
+	template <typename T> sensorData normalizeData(T data);
 };
 
 TCS3200Core::TCS3200Core() : timer(nullptr) { voidBW(); }
@@ -337,18 +336,6 @@ void TCS3200Core::read() { (this->*f_RGB_MODE)(); }
 -----------------
 ------------------------------------------------------
 */
-/*bool TCS3200Core::onChangeColor() {
-	TCS3200Core::read();
-	// int cli = TCS3200Core::checkColor(&_rgb);
-
-	if (cli != TCS3200Core::_lastColor) {
-		TCS3200Core::_lastColor = cli;
-		return true;
-	} else {
-		return false;
-	}
-}*/
-
 sensorData TCS3200Core::color() {
 	TCS3200Core::LEDON(_LEDToRead);
 	sensorData sensorcolor;
@@ -378,7 +365,7 @@ sensorData TCS3200Core::color() {
 
 void TCS3200Core::voidRAW(sensorData *d) {
 	for (int i = 0; i < RGB_SIZE; ++i) {
-		d->value[i] = 0;
+		d->value[i] = 0; // Void with memcpy
 	}
 }
 
@@ -388,30 +375,32 @@ colorData TCS3200Core::readRGB() {
 	return color;
 }
 
+void TCS3200Core::setColorData(sensorData &dest, const sensorData &src) {
+	memcpy(&dest, &src, sizeof(sensorData));
+}
+
+template <typename T> sensorData TCS3200Core::normalizeData(T data) {
+	uint32_t sumcolor = data.value[0] + data.value[1] + data.value[2];
+	sensorData normData;
+	for (int i = 0; i < RGB_SIZE; ++i) {
+		normData.value[i] = data.value[i] / sumcolor;
+	}
+	return normData;
+}
+
 sensorData TCS3200Core::readRAW() {
 	sensorData rawcl;
 	rawcl = TCS3200Core::color();
-	_raw.value[TCS3200_RGB_R] = rawcl.value[0];
-	_raw.value[TCS3200_RGB_G] = rawcl.value[1];
-	_raw.value[TCS3200_RGB_B] = rawcl.value[2];
-	_raw.value[TCS3200_RGB_X] = rawcl.value[3];
+	TCS3200Core::setColorData(_raw, rawcl);
 	return rawcl;
 }
 
 sensorData TCS3200Core::relativeColor() {
 	if (f_RGB_MODE == &TCS3200Core::read_RGB) {
-		uint32_t sumcolor = _rgb.value[0] + _rgb.value[1] + _rgb.value[2];
-		_relrgb.value[TCS3200_RGB_R] = _rgb.value[TCS3200_RGB_R] / sumcolor;
-		_relrgb.value[TCS3200_RGB_G] = _rgb.value[TCS3200_RGB_G] / sumcolor;
-		_relrgb.value[TCS3200_RGB_B] = _rgb.value[TCS3200_RGB_B] / sumcolor;
-		_relraw.value[TCS3200_RGB_X] = _rgb.value[TCS3200_RGB_X] / sumcolor;
+		TCS3200Core::setColorData(_relrgb, TCS3200Core::normalizeData(_rgb));
 		return _relrgb;
 	} else {
-		uint32_t sumcolor = _raw.value[0] + _raw.value[1] + _raw.value[2];
-		_relraw.value[TCS3200_RGB_R] = _raw.value[TCS3200_RGB_R] / sumcolor;
-		_relraw.value[TCS3200_RGB_G] = _raw.value[TCS3200_RGB_G] / sumcolor;
-		_relraw.value[TCS3200_RGB_B] = _raw.value[TCS3200_RGB_B] / sumcolor;
-		_relraw.value[TCS3200_RGB_X] = _raw.value[TCS3200_RGB_X] / sumcolor;
+		TCS3200Core::setColorData(_relraw, TCS3200Core::normalizeData(_raw));
 		return _relraw;
 	}
 }
@@ -419,9 +408,7 @@ sensorData TCS3200Core::relativeColor() {
 void TCS3200Core::getRGB(colorData *rgb) {
 	if (rgb == NULL)
 		return;
-	for (uint8_t i = 0; i < RGB_SIZE; i++) {
-		rgb->value[i] = _rgb.value[i];
-	}
+	memcpy(rgb, &_rgb, sizeof(sensorData));
 }
 
 void TCS3200Core::getRaw(sensorData *d) {
@@ -429,10 +416,7 @@ void TCS3200Core::getRaw(sensorData *d) {
 	// calibration data
 	if (d == NULL)
 		return;
-
-	for (uint8_t i = 0; i < RGB_SIZE; i++) {
-		d->value[i] = _raw.value[i];
-	}
+	memcpy(d, &_raw, sizeof(sensorData));
 }
 
 colorData TCS3200Core::raw2RGB(void) {
