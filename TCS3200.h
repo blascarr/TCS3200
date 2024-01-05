@@ -3,20 +3,10 @@
 
 #include "TCS3200Core.h"
 
-#ifndef SIZECOLORS
-#define SIZECOLORS 8
-#endif
-
-#if SIZECOLORS == 6
-#include "ColorTable/CT6.h" // TODO
-#endif
-
 #if SIZECOLORS == 8
 #include "ColorTable/CT8.h"
-#endif
-
-#if SIZECOLORS == 10
-#include "ColorTable/CT10.h" // TODO
+#else
+#warning "Color Table should be declared."
 #endif
 
 class TCS3200 : public TCS3200Core {
@@ -44,6 +34,7 @@ class TCS3200 : public TCS3200Core {
 	void loadCal(uint8_t nEEPROM = 0);
 	void saveCT(uint8_t nEEPROM = 0);
 	void loadCT(uint8_t nEEPROM = 0);
+	void loadExternalCT(colorTable CT[]);
 	void voidCT();
 	void setToFactoryCT(uint8_t nEEPROM = 0);
 };
@@ -106,7 +97,8 @@ void TCS3200::loadCal(uint8_t nEEPROM) {
 }
 
 void TCS3200::saveCT(uint8_t nEEPROM) {
-	// Save Color Table after Black and White sensorData Calibration values
+	// Save Color Table in EEPROM after Black and White sensorData Calibration
+	// values
 	int address = nEEPROM + 2 * sizeof(sensorData);
 	for (int i = 0; i < SIZECOLORS; ++i) {
 		EEPROM.put(address, _ct[i]);
@@ -115,12 +107,17 @@ void TCS3200::saveCT(uint8_t nEEPROM) {
 }
 
 void TCS3200::loadCT(uint8_t nEEPROM) {
-	// Load Color Table after Black and White sensorData Calibration values
+	// Load Color Table from EEPROM after Black and White sensorData Calibration
 	int address = nEEPROM + 2 * sizeof(sensorData);
 	for (int i = 0; i < SIZECOLORS; ++i) {
 		EEPROM.get(address, _ct[i]);
 		address += sizeof(colorTable);
 	}
+}
+
+void TCS3200::loadExternalCT(colorTable externalCT[]) {
+	// Load  External Color Table after Black and White sensorData Calibration
+	memcpy(&_ct, &externalCT, SIZECOLORS * sizeof(colorTable));
 }
 
 void TCS3200::voidCT() {
