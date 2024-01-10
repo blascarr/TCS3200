@@ -9,7 +9,9 @@
 #warning "Color Table should be declared."
 #endif
 
+class TCS3200Test;
 class TCS3200 : public TCS3200Core {
+	friend class TCS3200Test;
 
   public:
 	colorTable _ct[SIZECOLORS];

@@ -87,7 +87,10 @@ const bool FilterSettings[][2] = {
 
 const sensorData factory_BW[2] = {{254, 308, 275.5}, {97.5, 116.5, 99}};
 
+class TCS3200CoreTest;
 class TCS3200Core {
+	friend class TCS3200CoreTest;
+
   public:
 	TCS3200Core();
 	TCS3200Core(uint8_t S2, uint8_t S3, uint8_t OUT);
